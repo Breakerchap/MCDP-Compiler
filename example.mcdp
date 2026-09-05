@@ -160,8 +160,8 @@ func maths(int beta = 0) {
   say $alpha
   #* say hello minecraft
 
-  alpha = "whatever"
-  #? COMPILE ERROR:
+  # alpha = "whatever"
+  #? COMPILE ERROR example:
   #? str values are compile-time constants and cannot be reassigned.
 
 
