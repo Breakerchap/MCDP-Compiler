@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 
@@ -15,15 +16,21 @@ def test_basic_execute_and_variables():
 #! namespace test
 #! description "test"
 #! pack_format auto
+
 func hello(int n) {
   set int x = 2
   x += 3
   execute as @a at @s {
-    if n > 2 { say value=$x }
+    if n > 2 {
+      say value=$x
+    }
   }
 }
+
 func load {}
-func tick { function hello(4) }
+func tick {
+  function hello(4)
+}
 ''')
   assert "pack.mcmeta" in files
   assert "data/test/function/hello.mcfunction" in files
@@ -35,8 +42,12 @@ func tick { function hello(4) }
 def test_string_specialisation():
   files = compile_text('''
 #! namespace test
-func announce(str message) { say $message }
-func load { function announce("hello") }
+func announce(str message) {
+  say $message
+}
+func load {
+  function announce("hello")
+}
 ''')
   assert any("$message" not in content and "say hello" in content for path, content in files.items() if "__generated" in path)
 
@@ -55,12 +66,18 @@ func bad {
 def test_return_value_and_call_expression():
   files = compile_text('''
 #! namespace test
-func square(int n) -> int { return n * n }
-func use { set int x = square(5) }
+func square(int n) -> int {
+  return n * n
+}
+func use {
+  set int x = square(5)
+}
 func load {}
 ''')
-  assert "execute store result score" in files["data/test/function/use.mcfunction"]
-  assert "return run scoreboard players get" in files["data/test/function/square.mcfunction"]
+  use = files["data/test/function/use.mcfunction"]
+  assert "execute store result score" in use
+  square = files["data/test/function/square.mcfunction"]
+  assert "return run scoreboard players get" in square
 
 
 def test_current_pack_metadata():
@@ -73,8 +90,12 @@ def test_current_pack_metadata():
 def test_compact_empty_function_and_semiglobal_access():
   files = compile_text('''
 #! namespace test
-func maths { set int a = 1 }
-func other { maths.a = 4 }
+func maths {
+  set int a = 1
+}
+func other {
+  maths.a = 4
+}
 func load{}
 ''')
   assert "scoreboard players set maths maths.a 4" in files["data/test/function/other.mcfunction"]
@@ -85,7 +106,9 @@ def test_custom_score_holder_and_boolean_paths():
 #! namespace test
 func check(bool enabled) {
   set int score(@s) = 2
-  if enabled || score(@s) > 3 { say yes }
+  if enabled || score(@s) > 3 {
+    say yes
+  }
 }
 func load {}
 ''')
@@ -99,7 +122,9 @@ def test_for_continue_still_increments():
   files = compile_text('''
 #! namespace test
 func loop {
-  for int i = 0; i < 3; i++ { continue }
+  for int i = 0; i < 3; i++ {
+    continue
+  }
 }
 func load {}
 ''')
@@ -111,8 +136,12 @@ def test_schedule_and_every_generate_helpers():
   files = compile_text('''
 #! namespace test
 func timers {
-  schedule 5s { say later }
-  every 1s { say again }
+  schedule 5s {
+    say later
+  }
+  every 1s {
+    say again
+  }
 }
 func load {}
 ''')
@@ -126,5 +155,7 @@ def test_void_function_cannot_be_expression():
     compile_text('''
 #! namespace test
 func nope {}
-func use { set int x = nope() }
+func use {
+  set int x = nope()
+}
 ''')
