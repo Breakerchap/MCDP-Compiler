@@ -1,0 +1,680 @@
+#! namespace demo
+#! name "Demo Datapack"
+#! description "Example datapack built entirely from one source file."
+#! pack_format auto
+
+# Normal comments are discarded.
+
+# ! Supports native mcfunction commands unchanged.
+# ! Builds the entire datapack from this source file.
+# ! All executable code must exist inside func blocks.
+# ! Variables are semi-global:
+# !   localName      inside its own function
+# !   functionName.name  from another function
+# !
+# ! Runtime int/bool variables use scoreboards.
+# ! str and const values exist only at compile time.
+#
+#* Shows generated mcfunction output.
+#? Explains transpiler behaviour.
+
+
+
+# ============================================================
+# GLOBALS / CONSTANTS
+# ============================================================
+
+global int round = 0
+global bool gameRunning = false
+
+const int MAX_ROUNDS = 5
+const int STARTING_SCORE = 10
+const int DOUBLE_SCORE = STARTING_SCORE * 2
+
+const str PREFIX = "[Demo]"
+const str WELCOME_MESSAGE = "Welcome to the server!"
+
+
+
+# ============================================================
+# LOAD
+# ============================================================
+
+func load {
+  #? Reserved function.
+  #? Automatically added to minecraft:load.
+  #? Compiler-generated scoreboard objective creation is also
+  #? inserted into this function.
+
+  say $PREFIX Loading datapack...
+
+  global.round = 0
+  global.gameRunning = false
+
+  function resetGame()
+
+  say $PREFIX Datapack loaded.
+}
+
+
+
+# ============================================================
+# TICK
+# ============================================================
+
+func tick {
+  #? Reserved function.
+  #? Automatically added to minecraft:tick.
+
+  if global.gameRunning {
+    function gameTick()
+  }
+
+  execute as @a at @s {
+    if entity @s[tag=needs_welcome] {
+      function welcomePlayer()
+    }
+  }
+}
+
+
+
+# ============================================================
+# BASIC FUNCTION
+# ============================================================
+
+func welcomePlayer {
+  say $WELCOME_MESSAGE
+
+  tag @s remove needs_welcome
+
+  execute at @s {
+    particle minecraft:happy_villager ~ ~1 ~ 0.5 0.5 0.5 0.1 10
+  }
+
+  return
+
+  #? Anything after an unconditional return is unreachable.
+  say this never runs
+}
+
+
+
+# ============================================================
+# EXECUTE BLOCKS
+# ============================================================
+
+func tpAdventures {
+  execute as @a at @s if entity @s[gamemode=adventure] {
+    tp @s ^10 ^ ^10
+    #* execute as @a at @s if entity @s[gamemode=adventure] run tp @s ^10 ^ ^10
+
+    say hi
+    #* execute as @a at @s if entity @s[gamemode=adventure] run say hi
+  }
+}
+
+
+func nestedExecute {
+  execute as @a {
+    execute at @s {
+      if entity @s[tag=test] {
+        if block ~ ~-1 ~ minecraft:stone {
+          say standing on stone
+        }
+      }
+    }
+  }
+
+  #? Nested execute / if blocks may be flattened where possible.
+}
+
+
+
+# ============================================================
+# VARIABLES
+# ============================================================
+
+func maths(int beta = 0) {
+  set int a = 10
+  #? Objective creation occurs during load.
+  #* scoreboard players set maths maths.a 10
+
+  a += 5
+  #* scoreboard players add maths maths.a 5
+
+  a -= 2
+
+  a++
+  a--
+
+
+  set bool enabled = true
+
+  enabled = false
+  enabled = !enabled
+
+
+  set str alpha = "hello minecraft"
+
+  say $alpha
+  #* say hello minecraft
+
+  alpha = "whatever"
+  #? COMPILE ERROR:
+  #? str values are compile-time constants and cannot be reassigned.
+
+
+  const int localLimit = 8
+  const str localMessage = "Maths function!"
+
+  say $localMessage
+
+
+  beta += 1
+
+
+  # Runtime integer expressions:
+  a = beta + 5
+  a = beta * 2
+  a = (beta + 3) * 4
+  a = a / 2
+  a = a % 3
+
+
+  # Native commands can still be placed directly in the function.
+  say hi; tp @a 0 64 0
+}
+
+
+
+# ============================================================
+# CUSTOM SCORE HOLDERS
+# ============================================================
+
+func scoreExamples {
+  set int b(test) = -1
+  #? "test" is the explicit score holder.
+  #* scoreboard players set test b -1
+
+  b(test) += 5
+
+
+  set int health(@s) = 10
+  #* scoreboard players set @s health 10
+
+  health(@s) += 5
+
+  if health(@s) < 20 {
+    say low health
+  }
+
+
+  set int points(@a) = 0
+  points(@a) += 1
+}
+
+
+
+# ============================================================
+# CONDITIONS
+# ============================================================
+
+func conditions(int n, bool enabled) {
+  if n > 2 {
+    maths.a = 4
+  }
+  else if n != 2 {
+    say n is not two
+  }
+  else {
+    say n is two
+  }
+
+
+  if n >= maths.a {
+    say n is at least maths.a
+  }
+
+
+  if enabled {
+    say enabled
+  }
+
+
+  if !enabled {
+    say disabled
+  }
+
+
+  if enabled && n > 5 {
+    say both conditions are true
+  }
+
+
+  if enabled || n == 0 {
+    say at least one condition is true
+  }
+
+
+  # Native execute-if conditions:
+
+  if entity @a[tag=admin] {
+    say an admin exists
+  }
+
+
+  if block ~ ~-1 ~ minecraft:stone {
+    say stone below
+  }
+
+
+  if biome ~ ~ ~ minecraft:plains {
+    say plains biome
+  }
+
+
+  if predicate demo:is_special {
+    say predicate passed
+  }
+
+
+  # Negated native condition:
+
+  if !entity @a[tag=dead] {
+    say nobody with that selector was found
+  }
+
+
+  # Optional "unless" syntax:
+
+  unless entity @a[tag=dead] {
+    say same idea as the previous condition
+  }
+}
+
+
+
+# ============================================================
+# WHILE
+# ============================================================
+
+func countdown(int n) {
+  while n > 0 {
+    say $n
+
+    n--
+
+    if n == 5 {
+      continue
+    }
+
+    if n == 2 {
+      break
+    }
+  }
+
+  #? while loops execute repeatedly during the SAME tick.
+  #? They compile using generated helper functions / recursion.
+}
+
+
+
+# ============================================================
+# FOR
+# ============================================================
+
+func countedLoop {
+  for int i = 0; i < 10; i++ {
+    say $i
+
+    if i == 3 {
+      continue
+    }
+
+    if i == 8 {
+      break
+    }
+  }
+
+
+  # Potential shorthand:
+  #
+  # for i in 0..10 {
+  #   say $i
+  # }
+}
+
+
+
+# ============================================================
+# RETURN
+# ============================================================
+
+func checkNumber(int n) {
+  if n < 0 {
+    say negative values aren't allowed
+    return
+  }
+
+  if n == 0 {
+    return
+  }
+
+  say valid number
+}
+
+
+
+# ============================================================
+# RETURN VALUES
+# ============================================================
+
+func square(int n) -> int {
+  return n * n
+}
+
+
+func getStartingScore -> int {
+  return STARTING_SCORE
+}
+
+
+func returnExample {
+  set int value = square(5)
+  set int score = getStartingScore()
+
+  value += score
+}
+
+
+
+# ============================================================
+# FUNCTION PARAMETERS
+# ============================================================
+
+func teleportPlayer(int x, int y = 64, int z = 0) {
+  #? Runtime integer interpolation may compile using generated
+  #? Minecraft function macros / storage.
+
+  tp @s $x $y $z
+}
+
+
+func functionCalls {
+  function teleportPlayer(10)
+  #? Equivalent to teleportPlayer(10, 64, 0)
+
+  function teleportPlayer(10, 100, -5)
+
+  function maths()
+  #? beta uses default value 0.
+
+  function maths(20)
+}
+
+
+
+# ============================================================
+# COMPILE-TIME ARGUMENTS / CONSTANTS
+# ============================================================
+
+func announce(str message) {
+  #? str parameters are compile-time constants.
+
+  say $PREFIX $message
+}
+
+
+func announcements {
+  function announce("Hello!")
+  function announce("Round starting!")
+}
+
+
+
+# ============================================================
+# SCHEDULE
+# ============================================================
+
+func scheduling {
+  schedule 5s {
+    say five seconds later
+  }
+
+  #? Generates a hidden helper function and schedules it.
+
+
+  schedule 20t {
+    function announce("One second passed.")
+  }
+
+
+  schedule function maths(5) 10s
+  #? Alternate direct form.
+}
+
+
+
+# ============================================================
+# REPEATED / CROSS-TICK EXECUTION
+# ============================================================
+
+func startRepeating {
+  every 1s {
+    say this runs every second
+  }
+
+
+  every 5t {
+    particle minecraft:end_rod ~ ~1 ~ 0 0 0 0 1
+  }
+}
+
+
+func slowCountdown(int n) {
+  every 1t while n > 0 {
+    say $n
+    n--
+  }
+
+  #? Unlike normal while, this executes once per tick.
+}
+
+
+
+# ============================================================
+# GAME EXAMPLE
+# ============================================================
+
+func startGame {
+  if global.gameRunning {
+    return
+  }
+
+  global.gameRunning = true
+  global.round = 1
+
+  say $PREFIX Game started!
+
+  function beginRound(global.round)
+}
+
+
+func beginRound(int roundNumber) {
+  say $PREFIX Starting round $roundNumber
+
+  execute as @a {
+    set int score(@s) = STARTING_SCORE
+  }
+
+
+  schedule 30s {
+    function endRound()
+  }
+}
+
+
+func gameTick {
+  execute as @a at @s {
+    if entity @s[tag=bonus] {
+      score(@s) += 1
+    }
+
+    if score(@s) >= DOUBLE_SCORE {
+      tag @s add high_score
+    }
+  }
+}
+
+
+func endRound {
+  if !global.gameRunning {
+    return
+  }
+
+  say $PREFIX Round finished.
+
+  global.round++
+
+
+  if global.round > MAX_ROUNDS {
+    function endGame()
+    return
+  }
+
+
+  function beginRound(global.round)
+}
+
+
+func endGame {
+  global.gameRunning = false
+
+  say $PREFIX Game over!
+
+  execute as @a {
+    if score(@s) > 0 {
+      say Player finished with a positive score.
+    }
+  }
+}
+
+
+func resetGame {
+  global.round = 0
+  global.gameRunning = false
+
+  execute as @a {
+    set int score(@s) = 0
+    tag @s remove high_score
+    tag @s remove bonus
+  }
+}
+
+
+
+# ============================================================
+# RAW MCFUNCTION
+# ============================================================
+
+func rawExample {
+  raw {
+    #? Everything here is passed directly to Minecraft without
+    #? the transpiler interpreting its syntax.
+
+    execute as @a at @s run say This is completely raw mcfunction.
+  }
+}
+
+
+
+# ============================================================
+# NATIVE MCFUNCTION
+# ============================================================
+
+func nativeExample {
+  function minecraft:some_native_function
+
+  execute as @a run effect give @s minecraft:speed 5 1 true
+
+  scoreboard players add Example some_native_objective 1
+
+  #? Native commands remain valid and compile unchanged.
+}
+
+
+
+# ============================================================
+# SEMICOLONS
+# ============================================================
+
+func semicolons {
+  say one; say two; say three
+
+  #? Newlines OR semicolons terminate commands.
+}
+
+
+
+# ============================================================
+# EARLY RETURNS INSIDE EXECUTION
+# ============================================================
+
+func playerCheck {
+  execute as @a at @s {
+    if entity @s[tag=banned] {
+      say You cannot use this.
+      return
+    }
+
+    say You can use this.
+  }
+}
+
+
+
+# ============================================================
+# FULL ARITHMETIC EXAMPLE
+# ============================================================
+
+func calculator(int a, int b) {
+  set int sum = a + b
+  set int difference = a - b
+  set int product = a * b
+
+  if b != 0 {
+    set int quotient = a / b
+    set int remainder = a % b
+  }
+
+  set int complicated = (a + b) * 5 - 3
+
+  return
+}
+
+
+
+# ============================================================
+# EXAMPLE FUNCTION CALLS
+# ============================================================
+
+func demo {
+  function tpAdventures()
+
+  function maths(2)
+
+  function conditions(10, true)
+
+  function countdown(10)
+
+  function countedLoop()
+
+  function teleportPlayer(0, 100, 0)
+
+  function announce("Running demo.")
+
+  function calculator(20, 6)
+
+  function scheduling()
+}
